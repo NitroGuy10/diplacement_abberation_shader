@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Displacement & Abberation Shader</title>
+
+    <style>
+        td {
+            vertical-align: top;
+            min-width: 400px;
+        }
+    </style>
+
+    <script src="p5.js"></script>
+    <script src="shader.js"></script>
+</head>
+<body>
+    <h1>Displacement & Abberation Shader</h1>
+    <table>
+        <tr>
+            <td>
+                <p><span id="disp-map-name"></span><img src="disp1.png" width="100px"></p>
+                <p>Displacement Amount: <input autocomplete="off" type="range" min="0" max="0.03" step="0.0002" value="0.005" oninput="dispAmt = this.value; document.getElementById('dispAmt-num').innerText = this.value"><span id="dispAmt-num">0.005</span></p>
+                <p>Abberation Amount X: <input autocomplete="off" type="range" min="0" max="0.03" step="0.0002" value="0" oninput="abberationAmtX = this.value; document.getElementById('abberationAmtX-num').innerText = this.value"><span id="abberationAmtX-num">0</span></p>
+                <p>Abberation Amount Y: <input autocomplete="off" type="range" min="0" max="0.05" step="0.001" value="0" oninput="abberationAmtY = this.value; document.getElementById('abberationAmtY-num').innerText = this.value"><span id="abberationAmtY-num">0</span></p>
+                <p>Displacement Size: <input autocomplete="off" type="range" min="0" max="1" step="0.01" value="1" oninput="dispSize = this.value; document.getElementById('dispSize-num').innerText = this.value"><span id="dispSize-num">1</span></p>
+                <p>Displacement Change Speed: <input autocomplete="off" type="range" min="0" max="0.02" step="0.0001" value="0.005" oninput="dispChangeSpeed = this.value; document.getElementById('dispChange-speed-num').innerText = this.value"><span id="dispChange-speed-num">0.005</span></p>
+            </td>
+            <td>
+                <canvas id="canv"></canvas>
+            </td>
+        </tr>
+    </table>
+    
+    
+
+    <script>
+        let shaderFragSrc = `
+            precision mediump float;
+
+            // x,y coordinates, given from the vertex shader
+            varying vec2 vTexCoord;
+
+            // the canvas contents, given from filter()
+            uniform sampler2D tex0;
+            // displacement map
+            uniform sampler2D dispMap;
+
+            uniform float dispAmt;
+            uniform float abberationAmtX;
+            uniform float abberationAmtY;
+            uniform float dispSize;
+
+            void main ()
+            {
+                vec2 uv = vTexCoord;
+                //uv = 1.0 - uv;
+
+                // Displace
+                vec4 disp = texture2D(dispMap, vTexCoord * dispSize);
+                vec2 newUV = uv + disp.xy * dispAmt;
+                // Chromatic Abberation
+                
+                float r = texture2D(tex0, newUV - vec2(abberationAmtX, abberationAmtY)).r;
+                float g = texture2D(tex0, newUV).g;
+                float b = texture2D(tex0, newUV + vec2(abberationAmtX, abberationAmtY)).b;
+                float a = texture2D(tex0, newUV).a;
+
+                // Output
+                gl_FragColor = vec4(r, g, b, a);
+            }
+        `;
+
+        let disp1;
+        let disp2;
+        let disp3;
+        let disp4;
+        let disps;
+        let boil_shader;
+        let dispChangeSpeed = 0.005;
+        let currentDisp = 0;
+        let landingbg;
+
+        let dispAmt = 0.005;
+        let abberationAmtX = 0.0;
+        let abberationAmtY = 0.0;
+        let dispSize = 1;
+
+        function preload() {
+            disp1 = loadImage('disp1.png');
+            disp2 = loadImage('disp2.png');
+            disp3 = loadImage('disp3.png');
+            disp4 = loadImage('disp4.png');
+
+            landingbg = loadImage('landing-bg.png');
+        }
+
+        function setup() {
+            createCanvas(1000, 1500, WEBGL, canv);
+            boil_shader = createFilterShader(shaderFragSrc);
+
+            disps = [disp1, disp2, disp3, disp4];
+        }
+
+        function draw() {
+            background(0);
+            image(landingbg, -500, -750, width, height);
+
+            currentDisp += dispChangeSpeed * deltaTime;
+            if (currentDisp >= disps.length) {
+                currentDisp = 0;
+            }
+            document.getElementById('disp-map-name').innerText = 'disp' + (floor(currentDisp) + 1);
+            document.getElementById('disp-map-name').nextElementSibling.src = 'disp' + (floor(currentDisp) + 1) + '.png';
+
+            boil_shader.setUniform('dispMap', disps[floor(currentDisp)]);
+            boil_shader.setUniform('dispAmt', dispAmt);
+            boil_shader.setUniform('abberationAmtX', abberationAmtX);
+            boil_shader.setUniform('abberationAmtY', abberationAmtY);
+            boil_shader.setUniform('dispSize', dispSize);
+
+            filter(boil_shader);
+        }
+    </script>
+</body>
+</html>
